@@ -1,8 +1,11 @@
 <script setup>
-
+  const props = defineProps({
+    title: String,
+  })
 </script>
 
 <template>
+  <h2>{{ props.title }}</h2>
   <div class="chartFeature">
     <slot></slot>
   </div>

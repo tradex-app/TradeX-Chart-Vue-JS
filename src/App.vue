@@ -1,7 +1,10 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+import { ref, onMounted, provide } from 'vue'
+import ChartDemo from './components/ChartDemo.vue';
+import chartFeature from './components/chartFeature.vue';
+
+import chartType from './components/chartFeatures/chartType.vue';
+import indicators from './components/chartFeatures/indicators.vue';
 
 import { Chart } from 'tradex-chart'
 // import { Chart } from '../local_modules/tradex-chart/index'
@@ -9,9 +12,11 @@ import config from './data/config_yellowPurple';
 import state_1hour_noIndicators from './data/states/state_1hour_noIndicators';
 
 const root = ref(null)
+const chart = ref({})
+
+provide("chart", chart)
 
 onMounted(() => {
-  const chart = {}
     chart.value = document.createElement("tradex-chart")
     root.value.appendChild(chart.value)
     chart.value.setAttribute("width", "500")
@@ -31,9 +36,18 @@ onMounted(() => {
 <template>
   <div class="chart" ref="root"></div>
 
-  <header>
+  <div class="demo">
     <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
-  </header>
+    <chartDemo>
+      <chartFeature title="Candle Type">
+        <chartType/>
+      </chartFeature>
+
+      <chartFeature title="Indicators">
+        <indicators/>
+      </chartFeature>
+    </chartDemo>
+  </div>
 
 </template>
 
@@ -54,7 +68,7 @@ header {
 }
 
 @media (min-width: 1024px) {
-  header {
+  demo {
     display: flex;
     place-items: center;
     padding-right: calc(var(--section-gap) / 2);
