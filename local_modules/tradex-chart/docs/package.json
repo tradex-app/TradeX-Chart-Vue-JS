@@ -1,0 +1,18 @@
+{
+  "name": "tradex-chart",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev --port 3002",
+    "start": "astro dev --port 3002",
+    "build": "astro build --config astro.config.github.mjs && rm -rf ../../docs && cp -RT ./dist2 ../../docs ",
+    "test": "astro build",
+    "preview": "astro preview --port 3002",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.11.1",
+    "astro": "^3.3.0",
+    "sharp": "^0.32.1"
+  }
+}
