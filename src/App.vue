@@ -38,6 +38,7 @@ onMounted(() => {
 
   <div class="demo">
     <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
+    <img alt="Vue logo" class="logo" src="./assets/vue.svg" width="125" height="125" />
     <chartDemo>
       <chartFeature title="Candle Type">
         <chartType/>
@@ -63,7 +64,7 @@ header {
 }
 
 .logo {
-  display: block;
+  display: inline;
   margin: 0 auto 2rem;
 }
 
