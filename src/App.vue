@@ -5,6 +5,7 @@ import chartFeature from './components/chartFeature.vue';
 
 import chartType from './components/chartFeatures/chartType.vue';
 import indicators from './components/chartFeatures/indicators.vue';
+import FullScreen from './components/chartFeatures/fullScreen.vue';
 
 import { Chart } from 'tradex-chart'
 // import { Chart } from '../local_modules/tradex-chart/index'
@@ -40,6 +41,11 @@ onMounted(() => {
     <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
     <img alt="Vue logo" class="logo" src="./assets/vue.svg" width="125" height="125" />
     <chartDemo>
+
+      <chartFeature title="Fullscreen">
+        <FullScreen/>
+      </chartFeature>
+
       <chartFeature title="Candle Type">
         <chartType/>
       </chartFeature>
@@ -47,6 +53,7 @@ onMounted(() => {
       <chartFeature title="Indicators">
         <indicators/>
       </chartFeature>
+
     </chartDemo>
   </div>
 
