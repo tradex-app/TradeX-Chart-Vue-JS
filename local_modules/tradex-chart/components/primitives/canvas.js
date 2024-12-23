@@ -30,10 +30,8 @@ class Node {
     this.#layers = [];
     this.#id = CEL.idCnt++;
     this.#scene = new CEL.Scene(cfg);
-
-    // Initialize with parent container size instead of config
     const rect = this.#container.getBoundingClientRect();
-    this.setSize(rect.width, rect.height);
+    this.setSize(rect.width || cfg.width, rect.height || cfg.height);
   }
 
   get id() { return this.#id }
