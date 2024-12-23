@@ -530,41 +530,37 @@ class Scene extends Foundation {
   /**
    * export scene as an image file
    * @param {Object} cfg - {filename}
-   * @param {Function} cb - optional, by default opens image in new window / tab
    * @param {String} type - image format "img/png"|"img/jpg"|"img/webp"
    * @param {number} quality - image quality 0 - 1
    */
-  export(cfg, cb, type = "image/png", quality) {
-    if (typeof cb !== "function") cb = this.blobCallback.bind({ cfg: cfg });
-    this.canvas.toBlob(cb, type, quality);
+  export(cfg, type = "image/png", quality) {
+    const dataURL = this.canvas.toDataURL(type, quality);
+    this.invokeImageDownload(dataURL, cfg.fileName)
   }
 
   /**
    * export hit as an image file - for debugging / testing purposes
    * @param {Object} cfg - {filename}
-   * @param {Function} cb - optional, by default opens image in new window / tab
    * @param {String} type - image format "img/png"|"img/jpg"|"img/webp"
    * @param {number} quality - image quality 0 - 1
    */
-  exportHit(cfg, cb, type = "image/png", quality) {
-    if (typeof cb !== "function") cb = this.blobCallback.bind({ cfg });
-    this.layer.hit.canvas.toBlob(cb, type, quality);
+  exportHit(cfg, type = "image/png", quality) {
+    const dataURL = this.layer.hit.canvas.toDataURL(type, quality);
+    this.invokeImageDownload(dataURL, cfg.fileName)
   }
 
-  blobCallback(blob) {
-    let anchor = document.createElement("a"),
-        dataUrl = URL.createObjectURL(blob),
-        fileName = this.cfg.fileName || "canvas.png";
+  invokeImageDownload(dataURL, fileName) {
+    let anchor = document.createElement("a");
 
     // set <a></a> attributes
-    anchor.setAttribute("href", dataUrl);
+    anchor.setAttribute("href", dataURL);
     anchor.setAttribute("target", "_blank");
-    anchor.setAttribute("download", fileName);
+    anchor.setAttribute("download", fileName || "canvas.png");
 
     // invoke click
     if (document.createEvent) {
       Object.assign(document.createElement("a"), {
-        href: dataUrl,
+        href: dataURL,
         target: "_blank",
         download: fileName,
       }).click();

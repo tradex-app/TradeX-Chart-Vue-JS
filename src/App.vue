@@ -6,9 +6,10 @@ import chartFeature from './components/chartFeature.vue';
 import chartType from './components/chartFeatures/chartType.vue';
 import indicators from './components/chartFeatures/indicators.vue';
 import FullScreen from './components/chartFeatures/fullScreen.vue';
+import exportImage from './components/chartFeatures/exportImage.vue';
 
-import { Chart } from 'tradex-chart'
-// import { Chart } from '../local_modules/tradex-chart/index'
+// import { Chart } from 'tradex-chart'
+import { Chart } from '../local_modules/tradex-chart/index'
 import config from './data/config_yellowPurple';
 import state_1hour_noIndicators from './data/states/state_1hour_noIndicators';
 
@@ -52,6 +53,10 @@ onMounted(() => {
 
       <chartFeature title="Indicators">
         <indicators/>
+      </chartFeature>
+
+      <chartFeature title="Export Image">
+        <exportImage/>
       </chartFeature>
 
     </chartDemo>
