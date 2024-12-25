@@ -39,8 +39,13 @@ onMounted(() => {
   <div class="chart" ref="root"></div>
 
   <div class="demo">
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
-    <img alt="Vue logo" class="logo" src="./assets/vue.svg" width="125" height="125" />
+    <a href="https://tradex-app.github.io/TradeX-chart/" target="_blanke">
+      <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
+    </a>
+    <a href="https://vuejs.org/" target="_blanke">
+      <img alt="Vue logo" class="logo" src="./assets/vue.svg" width="125" height="125" />
+    </a>
+
     <chartDemo>
 
       <chartFeature title="Fullscreen">
