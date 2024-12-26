@@ -3,6 +3,7 @@
   import featureSelect from '../htmlElements/select.vue';
   import exotic_theme from '@/data/themes/exotic_theme';
   import dark_theme from '@/data/themes/dark_theme';
+  import watermellon_theme from '@/data/themes/watermellon_theme';
 
   const chart = inject('chart')
 
@@ -17,6 +18,12 @@
       text: "Dark",
       value: "dark",
       theme: dark_theme,
+      id: null
+    },
+    watermellon: {
+      text: "Watermellon",
+      value: "watermellon",
+      theme: watermellon_theme,
       id: null
     },
   }
