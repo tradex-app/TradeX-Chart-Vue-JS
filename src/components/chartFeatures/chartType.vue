@@ -1,44 +1,53 @@
 <script setup>
   import { inject } from 'vue';
-  import featureButton from '../htmlElements/button.vue';
+  import featureSelect from '../htmlElements/select.vue';
 
   const chart = inject('chart')
 
   const types = {
     solid: {
       text: "Solid",
-      fn: () => { chart.value.theme.setProperty("candle.Type", "candle_solid") }
+      value: "candle_solid"
     },
     hollow: {
       text: "Hollow",
-      fn: () => { chart.value.theme.setProperty("candle.Type", "candle_hollow") }
+      value: "candle_hollow"
     },
     hollowUp: {
       text: "Hollow Up",
-      fn: () => { chart.value.theme.setProperty("candle.Type", "candle_up_hollow") }
+      value: "candle_up_hollow"
     },
     hollowDn: {
       text: "Hollow Dn",
-      fn: () => { chart.value.theme.setProperty("candle.Type", "candle_down_hollow") }
+      value: "candle_down_hollow"
     },
     ohlc: {
       text: "OHLC",
-      fn: () => { chart.value.theme.setProperty("candle.Type", "ohlc") }
+      value: "ohlc"
     },
     area: {
       text: "Area",
-      fn: () => { chart.value.theme.setProperty("candle.Type", "area") }
+      value: "area"
     },
     line: {
       text: "Line",
-      fn: () => { chart.value.theme.setProperty("candle.Type", "line") }
+      value: "line"
     }
+  }
+
+  const fn = (e) => {
+    chart.value.theme.setProperty("candle.Type", e.target.value)
+  }
+
+  const select = {
+    options: types,
+    fn
   }
 
 </script>
 
 <template>
-  <featureButton v-for="type in types" :type="type" :key="type.text"/>
+    <featureSelect :select="select" />
 </template>
 
 <style scoped>
