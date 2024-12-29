@@ -2,6 +2,7 @@
 import { ref, onMounted, provide } from 'vue'
 import ChartDemo from './components/ChartDemo.vue';
 import chartFeature from './components/chartFeature.vue';
+import ChartLinks from './components/ChartLinks.vue';
 
 import chartType from './components/chartFeatures/chartType.vue';
 import indicators from './components/chartFeatures/indicators.vue';
@@ -41,11 +42,13 @@ onMounted(() => {
 
   <div class="demo">
     <a href="https://tradex-app.github.io/TradeX-chart/" target="_blanke">
-      <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
+      <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="75" height="75" />
     </a>
     <a href="https://vuejs.org/" target="_blanke">
-      <img alt="Vue logo" class="logo" src="./assets/vue.svg" width="125" height="125" />
+      <img alt="Vue logo" class="logo" src="./assets/vue.svg" width="75" height="75" />
     </a>
+    
+    <ChartLinks/>
 
     <chartDemo>
 
