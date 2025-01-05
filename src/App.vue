@@ -9,6 +9,7 @@ import indicators from './components/chartFeatures/indicators.vue';
 import FullScreen from './components/chartFeatures/fullScreen.vue';
 import exportImage from './components/chartFeatures/exportImage.vue';
 import chartTheme from './components/chartFeatures/chartTheme.vue';
+import timeline from './components/chartFeatures/timeline.vue';
 
 // import { Chart } from 'tradex-chart'
 import { Chart } from '../local_modules/tradex-chart/index'
@@ -58,6 +59,10 @@ onMounted(() => {
 
       <chartFeature title="Indicators">
         <indicators/>
+      </chartFeature>
+
+      <chartFeature title="Timeline">
+        <timeline/>
       </chartFeature>
 
       <chartFeature title="Candle Type">
