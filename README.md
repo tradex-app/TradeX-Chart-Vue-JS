@@ -1,4 +1,4 @@
-# TradeX Chart Vue2 Demo
+# TradeX Chart Vue Demo
 
 This demo will show you how easy it is to use TradeX Chart with Vue 3. It would be straight forward to build out a Vue wrapper component.
 
