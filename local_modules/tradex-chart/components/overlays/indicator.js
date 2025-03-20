@@ -1308,10 +1308,10 @@ export default class Indicator extends Overlay {
   #setValue(fn) {
     let p = this.TALibParams()
     if (!p) return false
-console.log(p)
+// console.log(p)
     let v = this.calcIndicatorStream(this.libName, p)
     if (!v) return false
-console.log(v)
+// console.log(v)
     fn(v)
     this.#status = IndicatorState.hasData
     this.target.setPosition(this.core.scrollPos, 0)

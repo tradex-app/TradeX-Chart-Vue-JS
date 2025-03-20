@@ -253,9 +253,8 @@ export default class Stream {
       data.c, 
       data.v, 
       null, true]
-      console.log("candle", this.#candle)
+      // console.log("candle", this.#candle)
 
-// console.log(`State: ${this.#state.key} new candle:`, this.#candle)
     this.#state.mergeData({ohlcv: [this.#candle]}, true, false)
     this.status = {status: STREAM_NEWVALUE, data: {data: data, candle: this.#candle}}
     this.#countDownMS = this.#state.timeFrame
@@ -286,7 +285,7 @@ export default class Stream {
     // update the last candle in the state data
     this.#candle = candle
 // console.log(`State: ${this.#state.key} candle update:`,candle)
-console.log(this.#candle)
+// console.log(this.#candle)
 
 
     const d = this.#state.data.chart.data
