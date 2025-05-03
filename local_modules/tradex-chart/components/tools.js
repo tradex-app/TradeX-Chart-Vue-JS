@@ -8,6 +8,7 @@ import tools from "../definitions/tools"
 import Tool from "./overlays/chart-tools"
 import stateMachineConfig from "../state/state-tools"
 import { ToolsStyle, TOOLSW } from "../definitions/style"
+import { isArray } from "../utils/typeChecks"
 
 
 /**
@@ -26,8 +27,9 @@ export default class ToolsBar extends Component {
   #Tool = Tool
   #tools
   #toolClasses = {}
-  #activeTool = undefined
+  #activeTool = ""
   #toolTarget
+  #toolsOverlay
   #toolEvents = {click:[], pointerover:[]}
 
   #menus = []
@@ -46,7 +48,11 @@ export default class ToolsBar extends Component {
   get shortName() {return this.#shortName}
   get pos() { return this.dimensions }
   get dimensions() { return elementDimPos(this.#elTools) }
+  get tools() { return this.#tools }
+  get list() { return this.listTools() }
+  get overlays() { return this.listToolOverlays() }
 
+  // iterate over tools list and add tool bar nodes
   init() {
     this.mount(this.#elTools)
   }
@@ -55,8 +61,8 @@ export default class ToolsBar extends Component {
   start() {
     // build toolbar
     this.initAllTools()
-    // add all on and off chart tools
-    this.addAllTools()
+    // draw tools in Range
+    this.drawRangeTools()
     // set up event listeners
     this.eventsListen()
 
@@ -79,8 +85,8 @@ export default class ToolsBar extends Component {
       for (let t of this.#tools) {
         if (t.id === id)
           tool.removeEventListener("click", this.#toolEvents[id].click)
-          tool.removeEventListener("pointerover", this.#toolEvents[id].pointerover)
-          tool.removeEventListener("pointerout", this.#toolEvents[id].pointerout)
+          // tool.removeEventListener("pointerover", this.#toolEvents[id].pointerover)
+          // tool.removeEventListener("pointerout", this.#toolEvents[id].pointerout)
       }
     }
 
@@ -88,8 +94,13 @@ export default class ToolsBar extends Component {
   }
 
   eventsListen() {
+    this.on("chart_started", this.onChartStarted, this)
     this.on("tool_selected", this.onToolSelect, this)
     this.on("tool_deselected", this.onToolDeselect, this)
+  }
+
+  onChartStarted() {
+    this.#toolsOverlay = this.core.Chart.graph.overlays.list.get("tools").layer.viewport
   }
 
   onResized() {
@@ -99,32 +110,39 @@ export default class ToolsBar extends Component {
   }
 
   onIconClick(e) {
-    let evt = e.currentTarget.dataset.event,
-        menu = e.currentTarget.dataset.menu || false,
+    let t = e.currentTarget
+    if (!t.classList.contains("enable")) return
+
+    let d = t.dataset,
+        evt = d.event,
+        menu = d.menu || false,
+        tool = t.id,
         data = {
-          target: e.currentTarget.id,
-          menu: menu,
-          evt: e.currentTarget.dataset.event,
-          tool: e.currentTarget.dataset.tool
+          target: t,
+          menu,
+          evt,
+          tool
         };
         
     // this.emit(evt, data)
+    console.log (data)
 
     if (menu) this.emit("menu_open", data)
     else {
-      this.emit("menuItem_selected", data)
+      this.emit("tool_activated", data)
+      this.addNewTool(tool, t)
     }
   }
 
-  onIconOut(e) {
-    const svg = e.currentTarget.querySelector('svg');
-          svg.style.fill = ToolsStyle.COLOUR_ICON
-  }
+  // onIconOut(e) {
+  //   const svg = e.currentTarget.querySelector('svg');
+  //         svg.style.fill = ToolsStyle.COLOUR_ICON
+  // }
 
-  onIconOver(e) {
-    const svg = e.currentTarget.querySelector('svg');
-          svg.style.fill = ToolsStyle.COLOUR_ICONHOVER
-  }
+  // onIconOver(e) {
+  //   const svg = e.currentTarget.querySelector('svg');
+  //         svg.style.fill = ToolsStyle.COLOUR_ICONHOVER
+  // }
 
   onToolTargetSelected(tool) {
     console.log("tool_targetSelected:", tool.target)
@@ -144,6 +162,7 @@ export default class ToolsBar extends Component {
     console.log("Tool deselected:", e)
   }
 
+  // iterate over tools list and add tool bar nodes
   mount(el) {
     el.innerHTML = this.#elTools.defaultNode(this.#tools)
   }
@@ -195,11 +214,13 @@ export default class ToolsBar extends Component {
         if (t.id === id) {
           this.#toolEvents[id] = {}
           this.#toolEvents[id].click = this.onIconClick.bind(this) // debounce(this.onIconClick, 500, this) // this.onIconClick.bind(this)
-          this.#toolEvents[id].pointerover = this.onIconOver.bind(this)
-          this.#toolEvents[id].pointerout = this.onIconOut.bind(this)
-          tool.addEventListener("click", this.#toolEvents[id].click)
-          tool.addEventListener("pointerover", this.#toolEvents[id].pointerover)
-          tool.addEventListener("pointerout", this.#toolEvents[id].pointerout)
+          // this.#toolEvents[id].pointerover = this.onIconOver.bind(this)
+          // this.#toolEvents[id].pointerout = this.onIconOut.bind(this)
+          if (t.active !== false) {
+            tool.addEventListener("click", this.#toolEvents[id].click)
+          }
+          // tool.addEventListener("pointerover", this.#toolEvents[id].pointerover)
+          // tool.addEventListener("pointerout", this.#toolEvents[id].pointerout)
 
           if (t?.sub) {
             let config = {
@@ -228,14 +249,16 @@ export default class ToolsBar extends Component {
   /**
    * add tool to chart row from data state
    * or add as new tool from toolbar
-   * @param {class} tool 
+   * @param {string} tool 
    * @param {Object} target
    */
   addTool(tool=this.#activeTool, target=this.#toolTarget) {
     let config = {
       name: tool,
       tool: this.#toolClasses[tool],
-      pos: target.cursorClick
+      pos: target.cursorClick,
+      theme: this.core.theme,
+      parent: this
     }
     let toolInstance = this.#Tool.create(target, config)
     toolInstance.start()
@@ -253,9 +276,32 @@ export default class ToolsBar extends Component {
     // add tool entry to Data State
   }
 
-  // add all tools to the chart panes
-  addAllTools() {
+  // draw all tools in (visible) Range to the chart panes
+  drawRangeTools() {
     // iterate over Data State to add all tools
   }
 
+  listTools() {
+    const list = {}
+    function iterate(tools) {
+      for (let t of tools) {
+        list[t.id] = t
+
+        if (isArray(t?.sub))
+          iterate(t.sub)
+      }
+    }
+    iterate(this.#tools)
+    return list
+  }
+
+  listToolOverlays() {
+    const list = {}
+    const tools = this.listTools()
+    for (let t of Object.keys(tools)) {
+      if (!!tools[t]?.class?.isOverlay)
+        list[t] = tools[t]
+    }
+    return list
+  }
 }

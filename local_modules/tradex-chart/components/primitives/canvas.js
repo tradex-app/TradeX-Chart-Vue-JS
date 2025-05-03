@@ -2,7 +2,7 @@
 
 import { decimalToHex, limit } from "../../utils/number";
 import { arrayMove } from "../../utils/utilities";
-import { isHTMLElement } from "../../utils/DOM";
+import { blobToDataURL, isHTMLElement } from "../../utils/DOM";
 import { isArray, isBoolean, isNumber } from "../../utils/typeChecks";
 // import WebGLCanvas from "../../renderer/Canvas2DtoWebGL/Canvas2DtoWebGL"
 
@@ -10,6 +10,10 @@ const composition = ["source-over","source-atop","source-in","source-out","desti
 const _OffscreenCanvas = (typeof OffscreenCanvas !== "undefined") ? true : false
 const contextTypes = ["2d", "webgl", "webgl2d", "webgl2", "webgpu", "bitmaprenderer"]
 
+
+/**
+ * Create a multi-layered canvas (not appended to container element)
+ */
 class Node {
 
   #key = 0
@@ -24,7 +28,7 @@ class Node {
    */
   constructor(cfg={}) {
 
-    if (!isHTMLElement(cfg?.container)) throw new Error("Viewport container is not a valid HTML element.")
+    if (!cfg?.offscreen && !isHTMLElement(cfg?.container)) throw new Error("Viewport container is not a valid HTML element.")
 
     this.#container = cfg.container;
     this.#layers = [];
@@ -152,6 +156,8 @@ class Node {
         layer;
 
     scene.clear();
+    let ctx = scene.context
+        ctx.save();
 
     for (layer of layers) {
 
@@ -161,7 +167,6 @@ class Node {
           layer.render(all)
 
       if (layer.visible && layer.width > 0 && layer.height > 0) {
-        const ctx = scene.context
 
         if (composition.includes(layer?.composition))
         ctx.globalCompositeOperation = layer.composition
@@ -176,11 +181,13 @@ class Node {
         );
       }
     }
+    ctx.restore()
   }
 }
 
+
 /**
- * Create multi-layered canvas
+ * Create multi-layered canvas and appends it to a containter element
  * @class Viewport
  */
 class Viewport extends Node {
@@ -335,7 +342,7 @@ class Layer {
         layers = viewport.layers,
         order;
 
-    if (typeof pos === "number") {
+    if (isNumber(pos)) {
       order = limit(Math.floor(pos), (layers.length - 1) * -1, layers.length - 1)
       pos = "order"
     }
@@ -414,6 +421,10 @@ class Layer {
   }
 }
 
+
+/**
+ * Creates a canvas
+ */
 class Foundation {
 
   #id
@@ -472,6 +483,26 @@ class Foundation {
   get context() { return this.#context }
   get layer() { return this.#layer }
 
+  getContext(type, cfg) {
+    return this.canvas.getContext(type, cfg);
+  }
+
+  getDataURL(type, quality, canvas=this.canvas) {
+    if (!this.offscreen) {
+      const dataURL = canvas.toDataURL(type, quality);
+      return dataURL
+    }
+    else {
+      canvas.convertToBlob()
+      .then(blob => {
+        blobToDataURL(blob)
+        .then(dataURL => {
+          return dataURL
+        })
+      });
+    }
+  }
+
  /**
    * set scene size
    * @param {number} width
@@ -491,6 +522,9 @@ class Foundation {
   }
 }
 
+/**
+ * Extends canvas functionality
+ */
 class Scene extends Foundation {
 
   /**
@@ -502,10 +536,6 @@ class Scene extends Foundation {
     super(cfg)
   }
 
-  getContext(type) {
-    return this.canvas.getContext(type);
-  }
-
   /**
    * convert scene into an HTML image source
    * @param {String} type - image format "img/png"|"img/jpg"|"img/webp"
@@ -515,7 +545,7 @@ class Scene extends Foundation {
   toImage(type = "image/png", quality, cb) {
     let that = this,
       imageObj = new Image(),
-      dataURL = this.canvas.toDataURL(type, quality);
+      dataURL = this.getDataURL(type, quality);
 
     imageObj.onload = function () {
       imageObj.width = that.width;
@@ -532,8 +562,16 @@ class Scene extends Foundation {
    * @param {number} quality - image quality 0 - 1
    */
   export(cfg, type = "image/png", quality) {
-    const dataURL = this.canvas.toDataURL(type, quality);
-    this.invokeImageDownload(dataURL, cfg.fileName)
+    if (!this.offscreen) {
+      const dataURL = this.getDataURL(type, quality);
+      this.invokeImageDownload(dataURL, cfg.fileName)
+    }
+    else {
+      this.getDataURL()
+      .then(dataURL => {
+        this.invokeImageDownload(dataURL, cfg.fileName)
+      });
+    }
   }
 
   /**
@@ -543,7 +581,7 @@ class Scene extends Foundation {
    * @param {number} quality - image quality 0 - 1
    */
   exportHit(cfg, type = "image/png", quality) {
-    const dataURL = this.layer.hit.canvas.toDataURL(type, quality);
+    const dataURL = this.getDataURL(type, quality, this.layer.hit.canvas);
     this.invokeImageDownload(dataURL, cfg.fileName)
   }
 
@@ -569,6 +607,9 @@ class Scene extends Foundation {
   }
 }
 
+/**
+ * Provides canvas hit detection
+ */
 class Hit extends Foundation {
 
   /**
@@ -581,7 +622,7 @@ class Hit extends Foundation {
   }
 
   getContext(type) {
-    return this.canvas.getContext(type, {
+    return super.getContext(type, {
       // add preserveDrawingBuffer to pick colours with readPixels for hit detection
       preserveDrawingBuffer: true,
       // fix webgl antialiasing picking issue
@@ -593,7 +634,7 @@ class Hit extends Foundation {
    * Test if a hit for coordinates. This can be used for pointer interactivity.
    * @param {number} x
    * @param {number} y
-   * @returns {Integer} layer index - returns -1 if no pixel is there
+   * @returns {number} layer index (integer) - returns -1 if no pixel is there
    */
   getIntersection(x, y) {
     let ctx = this.context,
@@ -668,7 +709,7 @@ class Hit extends Foundation {
 }
 function clear(that) {
   let context = that.context;
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = windowDevicePixelRatio()
 
   if (that.contextType === "2d") {
     // Save the current transform
@@ -685,6 +726,11 @@ function clear(that) {
   }
   return that;
 }
+
+function windowDevicePixelRatio() {
+  return (window && window.devicePixelRatio) || 1;
+}
+
 function sizeSanitize(width, height) {
   if (width < 0) width = 0
   if (height < 0) height = 0
@@ -693,32 +739,25 @@ function sizeSanitize(width, height) {
 
 function setSize(width, height, that) {
   let {width: w, height: h} = sizeSanitize(width, height)
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = windowDevicePixelRatio()
 
   that.width = w;
   that.height = h;
+
+  // Set the buffer size (actual pixels)
+  that.canvas.width = Math.round(w * dpr);
+  that.canvas.height = Math.round(h * dpr);
+  
+  // Scale all drawing operations by the dpr
+  if (that.contextType === "2d") {
+    // that.context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    that.context.scale(dpr, dpr)
+  }
 
   if (!that.offscreen) {
     // Set the display size (css pixels)
     that.canvas.style.width = `${w}px`;
     that.canvas.style.height = `${h}px`;
-    
-    // Set the buffer size (actual pixels)
-    that.canvas.width = Math.round(w * dpr);
-    that.canvas.height = Math.round(h * dpr);
-    
-    // Scale all drawing operations by the dpr
-    if (that.contextType === "2d") {
-      that.context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-  } else {
-    // For offscreen canvas, we still need to handle high DPI
-    that.canvas.width = Math.round(w * dpr);
-    that.canvas.height = Math.round(h * dpr);
-    
-    if (that.contextType === "2d") {
-      that.context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
   }
 
   if (that.contextType !== "2d" &&
@@ -733,7 +772,7 @@ function setSize(width, height, that) {
 const CEL = {
   idCnt: 0,
   viewports: [],
-  pixelRatio: (window && window.devicePixelRatio) || 1,
+  get pixelRatio() { return windowDevicePixelRatio() },
 
   Node,
   Viewport,

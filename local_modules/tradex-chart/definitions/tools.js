@@ -1,12 +1,14 @@
 // tools.js
 
-import { cursor, line, fibonacci, range, text, measure, del } from "./icons"
+import { cursor, line, fibonacci, range, tradePosition, text, measure, del } from "./icons"
 
+import Cursor from "../tools/cursor"
 import Fibonacci from "../tools/fibonacci"
 import Line from "../tools/line"
 import Measure from "../tools/measure"
 import Range from "../tools/range"
 import Text from "../tools/text"
+import TradePosition from "../tools/trade-positiion"
 
 export default [
   {
@@ -14,12 +16,18 @@ export default [
     name: "Cursor",
     icon: cursor,
     event: "tool_activated",
+    enable: false,
+    diplay: true,
+    active: true,
+    class: Cursor
   },
   {
     id: "line",
     name: "Line",
     icon: line,
     event: "tool_activated",
+    enable: false,
+    diplay: true,
     class: Line,
     sub: [
       {
@@ -50,6 +58,8 @@ export default [
     name: "Fibonacci",
     icon: fibonacci,
     event: "tool_activated",
+    enable: false,
+    diplay: true,
     class: Fibonacci,
     sub: [
       {
@@ -64,6 +74,8 @@ export default [
     name: "Range",
     icon: range,
     event: "tool_activated",
+    enable: false,
+    diplay: true,
     class: Range,
     sub: [
       {
@@ -74,10 +86,21 @@ export default [
     ]
   },
   {
+    id: "trade",
+    name: "Trade Position",
+    icon: tradePosition,
+    event: "tool_activated",
+    enable: true,
+    diplay: true,
+    class: TradePosition,
+  },
+  {
     id: "text",
     name: "Text",
     icon: text,
     event: "tool_activated",
+    enable: false,
+    diplay: true,
     class: Text,
     sub: [
       {
@@ -92,6 +115,8 @@ export default [
     name: "Measure",
     icon: measure,
     event: "tool_activated",
+    enable: false,
+    diplay: true,
     class: Measure,
   },
   {
@@ -99,6 +124,8 @@ export default [
     name: "Delete",
     icon: del,
     event: "tool_activated",
+    enable: false,
+    diplay: true,
     class: undefined,
   }
 ]

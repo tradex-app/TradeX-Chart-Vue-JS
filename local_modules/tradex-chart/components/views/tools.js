@@ -28,9 +28,17 @@ export default class tradeXTools extends element {
         height: ${ToolsStyle.ICONSIZE};
         width: ${ToolsStyle.ICONSIZE};
         fill: ${ToolsStyle.COLOUR_ICON};
+        opacity: 0.5;
+        display: none;
       }
-      svg:hover {
-        fill: ${ToolsStyle.COLOUR_ICONHOVER};
+      .display svg {
+        display: block;
+      }
+      .enable svg {
+        opacity: 1;
+      }
+      .enable svg:hover {
+        fill: ${ToolsStyle.COLOUR_ICONHOVER} !important;
       }
       .icon-wrapper {
         width: ${ToolsStyle.ICONSIZE};
@@ -47,8 +55,11 @@ export default class tradeXTools extends element {
 
   iconNode(tool) {
     const menu = ("sub" in tool) ? `data-menu="true"` : ""
+    const active = (tool?.active !== false) ? `active` : ``
+    const enable = (tool?.enable !== false) ? `enable` : ``
+    const display = (tool?.display !== false) ? `display` : ``
     return  `
-      <div id="${tool.id}" data-event="${tool.event}" ${menu} class="icon-wrapper">${tool.icon}</div>\n
+      <div id="${tool.id}" data-event="${tool.event}" ${menu} class="icon-wrapper ${active} ${enable} ${display}">${tool.icon}</div>\n
     `
   }
 }

@@ -185,6 +185,7 @@ or similarly via the chart state
 chart0.state.allData.primaryPane
 chart0.state.allData.secondaryPane
 ```
+### Indicator Data Format
 
 ### Indicator Data Format
 

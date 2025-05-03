@@ -2,7 +2,7 @@
 // A base class for overlays components to extend upon
 
 
-import { isString } from "../utils/typeChecks"
+import { isObject, isString } from "../utils/typeChecks"
 import { xMap } from "../utils/utilities"
 import CEL from "./primitives/canvas"
 
@@ -12,6 +12,7 @@ export default class Overlays {
   #core
   #config
   #parent
+  #chart
 
   #list
 
@@ -20,11 +21,13 @@ export default class Overlays {
   constructor (parent, list=[]) {
 
     this.#parent = parent
+    this.#chart = parent.chart
     this.#core = parent.core
     this.#list = new xMap([...list])
 
     // iterate over List, create and add overlays
     for (const [key, overlay] of this.#list) {
+      overlay.chart = this.#chart
       this.addOverlay(key, overlay)
     }
 
@@ -84,11 +87,27 @@ export default class Overlays {
     return r
   }
 
+  /**
+   * instantiate overlay
+   *
+   * @param {string} key
+   * @param {object} overlay
+   * @return {object} 
+   * @memberof Overlays
+   */
   addOverlay(key, overlay) {
     const layer = new CEL.Layer(this.layerConfig)
 
     // try / catch in case user defined custom overlays (indicator) errors
     try {
+      if (!overlay.class.isOverlay) 
+        throw new Error(`${overlay} is not an Overlay or a derivative`)
+
+      if (isObject(overlay?.params)) 
+        overlay.params.chart = this.#chart
+      else
+        overlay.params = { chart: this.#chart }
+
       this.parent.viewport.addLayer(layer)
       overlay.layer = layer
       overlay.instance = new overlay.class(
@@ -96,11 +115,11 @@ export default class Overlays {
         this.#parent.Timeline,
         this.#parent.Scale,
         this.#core.theme,
-        this,
+        overlay?.parent || this,
         overlay?.params
       )
       if (!isString(overlay.instance?.id)) 
-        overlay.instance.id = key
+        overlay.instance.id = String(key)
 
       this.#list.set(overlay.instance.id, overlay)
       return overlay
@@ -111,7 +130,7 @@ export default class Overlays {
       overlay.instance = undefined
       this.#list.delete(key)
       // report error
-      this.#core.error(`ERROR: Cannot instantiate ${key} overlay / indicator : It will not be added to the chart.`)
+      this.#core.error(`ERROR: Cannot instantiate ${key} overlay / indicator / tool : It will not be added to the chart.`)
       this.#core.error(e)
       return false
     }

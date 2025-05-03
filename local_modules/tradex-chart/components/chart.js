@@ -13,6 +13,7 @@ import Legends from "./primitives/legend"
 import Graph from "./views/classes/graph"
 import StateMachine from "../scaleX/stateMachne";
 import stateMachineConfig from "../state/state-chartPane"
+import { Tools } from "../tools";
 import Input from "../input"
 import ScaleBar from "./scale"
 import watermark from "./overlays/chart-watermark"
@@ -51,14 +52,30 @@ export const defaultOverlays = {
     ["candles", {class: chartCandles, fixed: false, required: true}],
     ["hiLo", {class: chartHighLow, fixed: true, required: false}],
     ["stream", {class: chartCandleStream, fixed: false, required: true}],
-    // ["tools", {class: chartTools, fixed: false, required: true}],
+    ["tools", {class: chartTools, fixed: false, required: true}],
     ["cursor", {class: chartCursor, fixed: true, required: true}]
   ],
   secondaryPane: [
     ["grid", {class: chartGrid, fixed: true, required: true, params: {axes: "y"}}],
-    // ["tools", {class: chartTools, fixed: false, required: true}],
+    ["tools", {class: chartTools, fixed: false, required: true}],
     ["cursor", {class: chartCursor, fixed: true, required: true}]
   ]
+}
+export const standardOverlays = {
+  primaryPane: {
+    "watermark": {class: watermark, fixed: true, required: true, params: {content: null}},
+    "grid": {class: chartGrid, fixed: true, required: true, params: {axes: "y"}},
+    "candles": {class: chartCandles, fixed: false, required: true},
+    "hiLo": {class: chartHighLow, fixed: true, required: false},
+    "stream": {class: chartCandleStream, fixed: false, required: true},
+    "tools": {class: chartTools, fixed: false, required: true},
+    "cursor": {class: chartCursor, fixed: true, required: true}
+  },
+  secondaryPane: {
+    "grid": {class: chartGrid, fixed: true, required: true, params: {axes: "y"}},
+    "tools": {class: chartTools, fixed: false, required: true},
+    "cursor": {class: chartCursor, fixed: true, required: true}
+  }
 }
 export const optionalOverlays = {
   primaryPane: {
@@ -109,12 +126,12 @@ export default class Chart extends Component{
   #Legends;
   #Divider;
   #Stream;
+  #Tools
   #ConfigDialogue;
 
   #streamCandle
 
   #view
-  #viewport;
   #layersTools = new xMap();
   #overlayTools = new xMap();
 
@@ -226,10 +243,11 @@ export default class Chart extends Component{
   get layerGrid() { return this.graph.overlays.get("grid").layer }
   get overlays() { return Object.fromEntries([...this.graph.overlays.list]) }
   get overlayGrid() { return this.graph.overlays.get("grid").instance }
-  get overlayTools() { return this.#overlayTools }
+  get overlayTools() { return this.graph.overlays.get("tools").instance }
   get overlaysDefault() { return defaultOverlays[this.type] }
   get indicators() { return this.getIndicators() }
   get indicatorDeleteList() { return this.#indicatorDeleteList }
+  get tools() { return this.#Tools }
   get Divider() { return this.#Divider }
   get siblingPrev() { return this.sibling("prev") }
   get siblingNext() { return this.sibling("next") }
@@ -248,6 +266,8 @@ export default class Chart extends Component{
 
     // Y Axis - Price Scale
     this.#Scale.start();
+
+    this.#Tools = new Tools(this)
 
     // draw the chart - grid, candles, volume
     this.draw(this.range);
@@ -354,7 +374,6 @@ export default class Chart extends Component{
     this.#input.on("pointerup", this.onPointerUp.bind(this));
 
     // listen/subscribe/watch for parent notifications
-    this.on("main_mouseMove", this.updateLegends, this);
     this.on(STREAM_LISTENING, this.onStreamListening, this);
     this.on(STREAM_NEWVALUE, this.onStreamNewValue, this);
     this.on(STREAM_UPDATE, this.onStreamUpdate, this);
@@ -384,7 +403,7 @@ export default class Chart extends Component{
     this.graph.overlays.list.get("cursor").layer.visible = true
     this.#cursorPos = [Math.round(e.position.x), Math.round(e.position.y)]
     this.#Scale.onMouseMove(this.#cursorPos)
-    this.emit(`${this.id}_pointermove`, this.#cursorPos)
+    this.emit(`${this.id}_pointerMove`, this.#cursorPos)
   }
 
   onPointerEnter(e) {
@@ -393,14 +412,14 @@ export default class Chart extends Component{
     this.core.MainPane.onMouseEnter()
     this.scale.layerCursor.visible = true
     this.graph.overlays.list.get("cursor").layer.visible = true
-    this.emit(`${this.id}_pointerenter`, this.#cursorPos);
+    this.emit(`${this.id}_pointerEnter`, this.#cursorPos);
   }
 
   onPointerOut(e) {
     this.#cursorActive = false;
     this.#cursorPos = [Math.round(e.position.x), Math.round(e.position.y)];
     this.scale.layerCursor.visible = false
-    this.emit(`${this.id}_pointerout`, this.#cursorPos);
+    this.emit(`${this.id}_pointerOut`, this.#cursorPos);
   }
 
   onPointerDown(e) {
@@ -411,6 +430,11 @@ export default class Chart extends Component{
       this.emit("tool_targetSelected", { target: this, position: e });
     else if (this.isPrimary)
       this.emit("chart_primaryPointerDown", this.#cursorClick)
+    else if (!this.isPrimary)
+      this.emit("chart_secondaryPointerDown", this.#cursorClick)
+
+    this.emit("chart_pointerDown", {charPane: this, pos: this.#cursorClick})
+    this.emit(`${this.id}_pointerDown`, this.#cursorPos);
   }
 
   onPointerUp(e) {
@@ -502,7 +526,7 @@ export default class Chart extends Component{
 
   setWatermark(w) {
     if (isString(w.text) || isString(w)) this.core.config.watermark.text = w
-    else if ("imgURL" in w) this.core.config.watermark.imgURL = w
+    else if ("imgURL" in w) this.core.config.watermark.imgURL = w.imgURL
   }
 
   /**
@@ -528,8 +552,8 @@ export default class Chart extends Component{
   /**
    * Set chart dimensions
    * @param {Object} dims - dimensions {w:width, h: height}
-   * @param {Number} dims.w - width in pixels
-   * @param {Number} dims.h- height in pixels
+   * @param {Number|undefined} dims.w - width in pixels
+   * @param {Number|undefined} dims.h- height in pixels
    */
   setDimensions(dims={w: this.width, h: this.height}) {
     if (!isObject(dims)) dims = {w: this.width, h: this.height}
@@ -758,27 +782,13 @@ export default class Chart extends Component{
     let { layerConfig } = this.layerConfig();
     let layer = new CEL.Layer(layerConfig);
     this.#layersTools.set(tool.id, layer);
-    this.#viewport.addLayer(layer);
+    this.viewport.addLayer(layer);
 
     tool.layerTool = layer;
     this.#overlayTools.set(tool.id, tool);
   }
 
   addTools(tools) {}
-
-  // duplicate get overlayTools()
-  // overlayTools() {
-  //   const tools = [];
-  //   // for (let i = 0; i < this.#layersTools.length; i++) {
-  //   // tools[i] =
-  //   // new indicator(
-  //   //   this.#layersPrimary[i],
-  //   //   this.#Time,
-  //   //   this.#Scale,
-  //   //   this.config)
-  //   // }
-  //   // return tools
-  // }
 
   overlayToolAdd(tool) {
     // create new tool layer
@@ -1015,7 +1025,7 @@ export default class Chart extends Component{
       col.height = this.element.clientHeight
       col.rowsHeight = this.core.MainPane.rowsH
       col.rowsCnt = this.core.ChartPanes.size
-      this.setDimensions({W: undefined, h: COLLAPSEDHEIGHT})
+      this.setDimensions({w: undefined, h: COLLAPSEDHEIGHT})
     }
   }
 

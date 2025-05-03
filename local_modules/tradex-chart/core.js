@@ -3,7 +3,7 @@
 
 import { NAME, SHORTNAME, ID, RANGELIMIT, PRICE_PRECISION, VOLUME_PRECISION, STREAM_UPDATE } from './definitions/core'
 import style, { GlobalStyle, CHART_MINH, CHART_MINW, cssVars, SCALEW, TIMEH, TOOLSW, UTILSH, watermark } from './definitions/style'
-import { DEFAULT_TIMEFRAME, DEFAULT_TIMEFRAMEMS, OVERLAYPANES } from './definitions/chart'
+import { DEFAULT_TIMEFRAME, DEFAULT_TIMEFRAMEMS, LIMITPAST, OVERLAYPANES } from './definitions/chart'
 import { defaultConfig, defaultTitle, initialEmptyState } from './definitions/config'
 import IndicatorsPublic, { IndicatorClasses } from './definitions/indicators'
 import * as packageJSON from '../package.json'
@@ -13,9 +13,9 @@ import { limit } from './utils/number'
 import { isTimeFrame, SECOND_MS } from "./utils/time"
 import { doStructuredClone, mergeDeep, objToString, uid } from './utils/utilities'
 import State from './state/chart-state.js'
-import { Range, calcTimeIndex } from "./model/range"
 import { defaultTheme } from './definitions/style'
 import StateMachine from './scaleX/stateMachne'
+import Toolbox from './tools/index.js'
 import Stream from './helpers/stream'
 import Theme from "./helpers/theme"
 import WebWorker from "./helpers/webWorkers"
@@ -25,7 +25,7 @@ import ToolsBar from './components/tools'
 import MainPane from './components/main'
 import WidgetsG from './components/widgets'
 import Indicator from './components/overlays/indicator'
-import Chart, { defaultOverlays, optionalOverlays } from './components/chart'
+import Chart, { standardOverlays, optionalOverlays } from './components/chart'
 import exportImage from './utils/exportImage'
 // import talib from './wasm/index.esm.str.js'
 import * as talib from './wasm/index.esm'
@@ -79,9 +79,9 @@ export default class TradeXchart extends Tradex_chart {
   #stateClass
   #indicators = IndicatorClasses
   #indicatorsPublic = IndicatorsPublic
-  #standardOverlays = {...OVERLAYPANES}
-  #optionalOverlays = {...OVERLAYPANES}
-  #customOverlays = {...OVERLAYPANES}
+  #overlaysDefault = {...OVERLAYPANES}
+  #overlaysOptional = {...OVERLAYPANES}
+  #overlaysCustom = {...OVERLAYPANES}
   #TALib
   #theme
 
@@ -132,6 +132,8 @@ export default class TradeXchart extends Tradex_chart {
 
   #delayedSetRange = false
   #mergingData = false
+
+  #tools
 
   /**
    * Create a new TradeXchart instance
@@ -267,7 +269,7 @@ export default class TradeXchart extends Tradex_chart {
       if (!(chart instanceof TradeXchart)) return false
 
       const inCnt = chart.inCnt;
-      chart.destuction = true
+      chart.destruction = true
       chart.destroy()
       delete TradeXchart.#instances[inCnt];
       return true
@@ -306,6 +308,7 @@ export default class TradeXchart extends Tradex_chart {
     this.timers = false
     this.setID(null)
     this.#stateClass = State
+    this.#tools = new Toolbox(this)
 
     this.warn(`!WARNING!: ${NAME} changes to config format, for details please refer to https://github.com/tradex-app/TradeX-chart/blob/master/docs/notices.md`)
     this.log(`${SHORTNAME} instance count: ${this.inCnt}`)
@@ -313,9 +316,9 @@ export default class TradeXchart extends Tradex_chart {
     this.oncontextmenu = window.oncontextmenu
     this.#workers = WebWorker
 
-    const so = this.#standardOverlays
-    so.primaryPane = {...so.primaryPane, ...defaultOverlays.primaryPane}
-    this.#optionalOverlays = {...optionalOverlays}
+    const so = this.#overlaysDefault
+    so.primaryPane = {...so.primaryPane, ...standardOverlays.primaryPane}
+    this.#overlaysOptional = {...optionalOverlays}
   }
 
   log(...l) { if (this.logs) console.log(...l) }
@@ -365,7 +368,7 @@ export default class TradeXchart extends Tradex_chart {
   /** @returns {object} - all chart indicators in use, grouped by chart panes */
   get Indicators() { return this.#MainPane.indicators }
 
-  get CustomOverlays() { return this.#customOverlays }
+  get Tools() { return this.#tools }
 
   get ready() { return this.#ready }
 
@@ -427,8 +430,10 @@ export default class TradeXchart extends Tradex_chart {
   set candles(c) { if (isObject(c)) this.#candles = c }
   get candles() { return this.#candles }
   get progress() { return this.#progress }
-  get customOverlays() { return this.#customOverlays }
-  get optionalOverlays() { return mergeDeep({...this.#optionalOverlays}, this.#customOverlays) } 
+  get overlays() { return this.overlaysList() }
+  get overlaysDefault() { return this.#overlaysDefault }
+  get overlaysOptional() { return this.#overlaysOptional }
+  get overlaysCustom() { return this.#overlaysCustom } 
 
 
   /**
@@ -514,7 +519,7 @@ export default class TradeXchart extends Tradex_chart {
     // inject chart style rules
     this.insertAdjacentHTML('beforebegin', `<style title="${this.ID}_style"></style>`)
     this.setTheme(this.#theme.id)
-
+    this.Tools.static.register()
     this.#scrollPos = this.bufferPx * -1
 
     // is the chart empty - no data or stream
@@ -537,6 +542,8 @@ export default class TradeXchart extends Tradex_chart {
     setTimeout(this.refresh.bind(this), 1000)
 
     this.log(`${this.#name} V${TradeXchart.version} configured and running...`)
+
+    this.emit("chart_started")
   }
 
   /**
@@ -570,8 +577,8 @@ export default class TradeXchart extends Tradex_chart {
     this.WidgetsG.destroy()
 
     this.#workers.end()
-    this.#state = undefined
-    this.#stateClass = undefined
+    this.#state
+    this.#stateClass
 
     // DOM.findByID(this.ID).remove
   }
@@ -681,7 +688,7 @@ export default class TradeXchart extends Tradex_chart {
   getInCnt() { return this.#inCnt }
 
   validateID(txCfg) {
-    const id = (isString(txCfg?.id)) ? txCfg.id : null
+    const id = String(txCfg?.id)
     this.setID(id)
     this.classList.add(this.ID)
   }
@@ -699,8 +706,7 @@ export default class TradeXchart extends Tradex_chart {
    * @returns {Boolean} - success / failure
    */
   setTitle(t) {
-    if (!isString(t)) return false
-    this.Chart.setTitle(t)
+    this.Chart.setTitle(String(t))
     return true
   }
 
@@ -1123,6 +1129,25 @@ export default class TradeXchart extends Tradex_chart {
     return e[o]
   }
 
+  overlaysList(by) {
+    let list = {}
+    switch(by) {
+      case "all":
+        return {
+          ...this.overlayEntries(),
+          ...this.indicatorClasses,
+          ...this.ToolsBar.overlays
+        };
+      case "type":
+      default:
+        return {
+          standard: {...this.overlayEntries()},
+          indicators: {...this.indicatorClasses},
+          tools: {...this.ToolsBar.overlays}
+        }
+    }
+  }
+
   /**
    * list of optional overlays, inclusive of custom overlays by ID
    * @returns {Array} - array of optional overlay keys
@@ -1136,11 +1161,15 @@ export default class TradeXchart extends Tradex_chart {
    * @returns {object} - object of optional overlay key value pairs
    */
   overlayEntries() {
-    const c = this.optionalOverlays
-      let e = {}
-    for (let p in c) {
-      e = {...e, ...c[p]}
+    let e = {}
+    function merge (c) {
+      for (let p in c) {
+        e = {...e, ...c[p]}
+      }
     }
+    merge(this.#overlaysDefault)
+    merge(this.#overlaysOptional)
+    merge(this.#overlaysCustom)
     return e
   }
 
@@ -1156,9 +1185,9 @@ export default class TradeXchart extends Tradex_chart {
       if (
         isObject(v) &&
         this.isOverlay(v?.class) &&
-        Object.keys(this.#customOverlays).includes(v?.location)
+        Object.keys(this.#overlaysCustom).includes(v?.location)
       ) {
-        this.#customOverlays[v.location][k] = v
+        this.#overlaysCustom[v.location][k] = v
         result[k] = true
         this.log(`Custom Overlay: ${k} - Registered`)
       }
@@ -1256,15 +1285,13 @@ export default class TradeXchart extends Tradex_chart {
    * @returns {Overlay|boolean}
    */
   findOverlayInGraph(key, targetID) {
-    if (!isString(key) ||
-    !isString(targetID)) return false
 
     // is overlay ID valid?
-    const overlay = this.hasOverlay(key)
+    const overlay = this.hasOverlay(String(key))
     if (!overlay) return false
 
     // is targetID valid?
-    const graph = this.findGraph(targetID)
+    const graph = this.findGraph(String(targetID))
     if (!graph) return false
 
     return {overlay, graph}
@@ -1389,15 +1416,13 @@ export default class TradeXchart extends Tradex_chart {
    * Does current chart state have indicator
    * @param {string} i - indicator id or name
    * @param {string} dataset -
-   * @returns {Indicator|false}
+   * @returns {Indicator|boolean}
    */
   hasStateIndicator(i, dataset="searchAll") {
-    if (!isString(i) || !isString(dataset)) return false
 
     const find = function(i, d) {
       for (let e of d) {
-        if (e?.id == i || e?.name == i) return true
-        else return false
+        return (e?.id === i || e?.name === i) ? true : false
       }
     }
     let r
@@ -1406,13 +1431,14 @@ export default class TradeXchart extends Tradex_chart {
       for (let d of this.allData) {
         if (find(i, d)) return true
       }
-      return false
+      r = false
     }
     else {
       if (dataset in this.allData) {
-        return find(i, d)
+        r = find(i, d)
       }
     }
+    return r
   }
 
   /**

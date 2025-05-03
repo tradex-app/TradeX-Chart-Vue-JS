@@ -2,31 +2,57 @@
 // ray, horizontal ray, vertical ray
 
 import { isArray, isBoolean, isNumber, isObject, isString } from '../utils/typeChecks'
-import Tool from "../components/overlays/chart-tools"
-import { lineConfig } from "../definitions/tools";
-import StateMachine from '../scaleX/stateMachne';
+import { debounce, idSanitize, uid } from '../utils/utilities';
+import { ChartTool } from "../components/overlays/chart-tools"
+import State from '../state/chart-state';
+import { HIT_DEBOUNCE } from '../definitions/core';
+import Colour from '../utils/colour';
 
+const LINECONFIG = {
+  colour: "#ffffff",
+  width: 1.5
+}
 
-export default class Line extends Tool {
+let nameShort = "line"
+let nameLong = 'Line'
 
-  #colour = lineConfig.colour
-  #lineWidth = lineConfig.width
+export default class Line extends ChartTool {
+
+  get name() { return nameLong }
+  get shortName() { return nameShort }
+
+  static #cnt = 0
+  static get inCnt() { return Line.#cnt++ }
+
+  #colour = LINECONFIG.colour
+  #lineWidth = LINECONFIG.width
   #stateMachine
 
-  constructor(config) {
-    super(config)
+  constructor(target, xAxis=false, yAxis=false, theme, parent, params) {
+
+    super(target, xAxis, yAxis, theme, parent, params)
+    this.validateSettings(params?.settings)
+    // State.importData("tradesPositions", this.data, this.state, this.state.time.timeFrame)
   }
 
-  set colour(colour=this.#colour) {
-    // const c = tinycolor(colour)
-    // this.#colour = (c.isValid()) ? colour : this.#colour
-    this.#colour = colour
+  get inCnt() { return Line.#cnt }
+  set colour(colour) {
+    let c = new Colour(colour)
+    this.#colour = (c.isValid) ? colour : this.#colour
   }
   get colour() { return this.#colour }
   set lineWidth(width) { this.#lineWidth = (isNumber(width)) ? width : this.#lineWidth }
   get lineWidth() { return this.#lineWidth }
-  set stateMachine(config) { this.#stateMachine = new StateMachine(config, this) }
-  get stateMachine() { return this.#stateMachine }
+
+  validateSettings(s) {
+    if (!isObject(s)) return false
+
+    this.colour = s?.colour
+    this.lineWidth = s?.width
+
+    // this.posStart = s?.postStart
+    // this.posEnd = s?.posEnd
+  }
 
   start() {
     this.eventsListen()
@@ -47,11 +73,13 @@ export default class Line extends Tool {
   }
 
   draw() {
-    let [x1, y1] = this.cursorClick
+    // let [x1, y1] = this.chartPane.cursorClick
 
-    const scene = this.layerTool.scene
+    let [x1, y1] = [0,0]
+
+    const scene = this.scene
     scene.clear()
-    const ctx = this.layerTool.scene.context
+    const ctx = this.scene.context
 
     ctx.save();
 
@@ -66,6 +94,10 @@ export default class Line extends Tool {
 
     ctx.restore()
 
-    this.elViewport.render()
+    this.target.viewport.render()
   }
+}
+
+const stateMachineConfig = {
+
 }
